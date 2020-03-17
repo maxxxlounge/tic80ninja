@@ -10,7 +10,7 @@
     Game = {
         state = 0,
         -- at game start, generate enemy every 5 seconds
-        enemyGenerationRate=60*5,
+        enemyGenerationRate=60*2,
         timer=0
     }
 
@@ -120,12 +120,18 @@
             died=false,
             timer=0,
             offset=0,
-            SpriteIndex=0
+            SpriteIndex=0,
+            StartSpriteIndex=384
         }
         local rnd = math.random(10)
         if rnd%2==0 then
             e.x=250
             e.direction=0
+        end
+        --tauren
+        if rnd%5==0 then
+            e.StartSpriteIndex=416
+            e.life=3
         end
         table.insert(EnemyList,e)
         EnemyListLength=EnemyListLength+1
@@ -134,9 +140,8 @@
     function ManageEnemy()
         for ei=0,EnemyListLength,1 do
             if EnemyList[ei] ~= nil then
-                if EnemyList[ei].died and EnemyList[ei].timer%120==0 then
+                if EnemyList[ei].died and EnemyList[ei].timer%60==0 then
                     table.remove(EnemyList,ei)
-                    break
                 end
             end
         end
@@ -148,40 +153,40 @@
     function ManageEnemyMove()
         for ei=0,EnemyListLength,1 do
             if EnemyList[ei] ~= nil then
-                if EnemyList[ei].died then
+                if EnemyList[ei].died==false then
+                    local e = EnemyList[ei]
+                    if e.timer%4==0 then
+                        if e.x<Player.x and e.attack==0 then    
+                            trace("fwd")
+                            e.direction=1
+                        end                
+                        if e.x>=(Player.x) and e.attack==0 then
+                            trace("back")
+                            e.direction=0
+                        end
+                        e.vy = 0
+                        if e.y <= 75  then
+                            e.vy = 4
+                        end
+                        if e.attack>0 then
+                            e.vy = -4
+                        end
+                        if e.attack > 0 then
+                            e.vx = 4
+                        end
+                        if e.attack==0 then
+                            e.vx=1
+                        end
+                        --trace(string.format("%s",e.vx))
+                        e.y = e.y + e.vy
+                        if e.direction==0 then
+                            e.x = e.x - e.vx
+                        else
+                            e.x = e.x + e.vx
+                        end
+                    end
+                else
                     EnemyList[ei].offset=10
-                    break
-                end
-                local e = EnemyList[ei]
-                if e.timer%4==0 then
-                    if e.x<Player.x and e.attack==0 then    
-                        trace("fwd")
-                        e.direction=1
-                    end                
-                    if e.x>=(Player.x) and e.attack==0 then
-                        trace("back")
-                        e.direction=0
-                    end
-                    e.vy = 0
-                    if e.y <= 75  then
-                        e.vy = 4
-                    end
-                    if e.attack>0 then
-                        e.vy = -4
-                    end
-                    if e.attack > 0 then
-                        e.vx = 4
-                    end
-                    if e.attack==0 then
-                        e.vx=1
-                    end
-                    --trace(string.format("%s",e.vx))
-                    e.y = e.y + e.vy
-                    if e.direction==0 then
-                        e.x = e.x - e.vx
-                    else
-                        e.x = e.x + e.vx
-                    end
                 end
             end
         end
@@ -192,33 +197,33 @@
             if EnemyList[ei] ~= nil then
                 local e = EnemyList[ei]
                 if e.died==false then
-                    e.offset=0
-                end
-                if e.attack>=30 then
-                    e.attack=-30
-                end
-                if e.attack<0 then
-                    e.attack=e.attack+1
-                end
-                trace(string.format("e:%s p:%s e.x-Player.x:%s atk:%s",e.x,Player.x,e.x-Player.x,e.attack))
-                if (math.abs(Player.x-e.x)<Player.width) and e.attack==0 then
-                    e.attack=1
-                    e.timer=0
-                    if Player.attack>e.attack then
-                        e.life = e.life-1
-                        Player.score = Player.score+1
-                    else
-                        Player.life = Player.life-1
+                    e.offset=0 
+                    if e.attack>=30 then
+                        e.attack=-30
                     end
-                    if e.life<=0 then
-                        e.died=true
+                    if e.attack<0 then
+                        e.attack=e.attack+1
+                    end
+                    trace(string.format("e:%s p:%s e.x-Player.x:%s atk:%s",e.x,Player.x,e.x-Player.x,e.attack))
+                    if (math.abs(Player.x-e.x)<Player.width) and e.attack==0 then
+                        e.attack=1
                         e.timer=0
-                        e.attack=0
+                        if Player.attack>e.attack then
+                            e.life = e.life-1
+                            Player.score = Player.score+1
+                        else
+                            Player.life = Player.life-1
+                        end
+                        if e.life<=0 then
+                            e.died=true
+                            e.timer=0
+                            e.attack=0
+                        end
                     end
-                end
-                if e.attack > 0 then
-                    e.attack = e.attack+1
-                    e.offset = 4
+                    if e.attack > 0 then
+                        e.attack = e.attack+1
+                        e.offset = 4
+                    end
                 end
             end
         end
@@ -229,16 +234,20 @@
             if EnemyList[ei] ~= nil then
                 local e = EnemyList[ei]
                 if EnemyList[ei].died==false then
-                    e.SpriteIndex= 384+e.offset+e.timer%30//10*2
+                    e.SpriteIndex= e.StartSpriteIndex+e.offset+e.timer%30//10*2
                 else
-                    e.SpriteIndex= 384+8+e.timer%30//10*2
+                    e.SpriteIndex= e.StartSpriteIndex+10+e.timer%60//30*2
                 end
             end
         end
     end
 
     function SetPlayerSpriteIndex()
-        Player.SpriteIndex = 256+Player.offset+Player.timer%30//8*4
+        if Player.vx == 0 and Player.attack==0 then
+            Player.SpriteIndex = 256+Player.offset+Player.timer%60//30*4
+        else
+            Player.SpriteIndex = 256+Player.offset+Player.timer%30//8*4
+        end
     end
 
     function DrawElements()
@@ -252,7 +261,7 @@
     
     function DrawText()
         print((string.format("Life: %s",Player.life)),2,2,15)
-        print((string.format("Score: %s",Player.score)),100,2,15)
+        print((string.format("Score: %s",Player.score)),190,2,15)
     end
 
     function IncTimers()
