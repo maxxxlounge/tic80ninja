@@ -15,7 +15,7 @@
         vx=0,
         vy=0,
         life=100,
-        attack=false,
+        attack=0,
         onGround=true,
         onTop=true,
         direction=0,
@@ -62,32 +62,37 @@
     -- 1: attack
     pstate=0
   ]]--  
-    function ManageMove()
-        if btn(2) then 
-            if Player.offset==0 then 
+
+    function ManagePlayerAttack()
+        Player.offset=0
+        if Player.attack >= 30 then
+            Player.attack=-15
+        end
+        if Player.attack<0 then
+            Player.attack=Player.attack+1
+        end
+        if btn(4) and Player.attack==0 then
+            Player.attack=1
+            Player.timer=0
+        end
+        if Player.attack>0 then
+            Player.attack=Player.attack+1
+            Player.offset=64
+        end
+    end
+
+    function ManagePlayerMove()
+        Player.moving = false
+        Player.vx = 0
+        if btn(2) and Player.offset==0 then 
                 Player.vx=-1
                 Player.direction=1
                 Player.moving=true
-            end
         end
-        if btn(3) then 
-            if Player.offset==0 then 
+        if btn(3) and Player.offset==0 then 
                 Player.vx=1
                 Player.direction=0
                 Player.moving=true
-            end
-        end
-        if btn(4) then
-         if Player.offset==0 then
-            Player.timer=0
-            end
-            Player.attack=false
-            if Player.timer%4==3 then
-             Player.attack=true
-            end
-            Player.offset=64
-        else
-            Player.offset=0
         end
         Player.x=Player.x+Player.vx
         Player.y=Player.y+Player.vy
@@ -138,11 +143,13 @@
     end
 
     function GetPlayerSprite()
-        return 256+Player.offset+Player.timer%60//8*4
+        return 256+Player.offset+Player.timer%30//8*4
     end
 
     function Game()
-        ManageMove()
+        ManagePlayerMove()
+        ManagePlayerAttack()
+        trace(string.format("attack: %s", Player.attack))
         ManageEnemy()
         --[[tick=60
         sNum=30
