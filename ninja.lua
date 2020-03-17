@@ -7,7 +7,12 @@
 	-- 0 start
 	-- 1 game
 	-- 2 endgame
-    Gamestate=0
+    Game = {
+        state = 0,
+        -- at game start, generate enemy every 5 seconds
+        enemyGenerationRate=60*10,
+        timer=0
+    }
 
     Player={
         x=96,
@@ -21,30 +26,13 @@
         direction=0,
         timer=0,
         moving=false,
-        offset=0
+        offset=0,
+        SpriteIndex=0
     }
-    
-    Enemy={
-        x=0,
-        y=64,
-        vx=0,
-        vy=0,
-        life=5,
-        attack=false,
-        onGround=true,
-        onTop=false,
-        died=false
-    }
-    
-    EnemyList={}
-    EnemyListLength=0
-    c = 0
 
-    stars = {}
-    starsCount=0
-    
-    --enemies array
-    eenn = {}
+    EnemyList={}
+    EnemyListLength=0    
+
     --[[
     
     
@@ -110,67 +98,141 @@
         end
         starsCount=stc
     end
-    
-    function LoadEnemy()
-        if t%4==0 then
-            if ex<p.x then
-                ex=ex+1
-                de=1
-            end
-            
-            if ex>=p.x then
-                ex=ex-1
-                de=0
-            end
-            
-            if math.abs(ex,p.x)<5 or eattack==0 then
-                    eattack=1
-            end
-            if eattack==1 then
-                    ey=ey-1
-                    if ey<44 then
-                            eattack=0
-                    end
-            end
-        
-        end
-        spr(eattack+eo+t%30//10*2,ex,p.y+12,14,1,de,0,2,2)
-    end
         --]]
 
+    function GenerateNewEnemy()
+        trace("generate new enemy")
+        local e = {
+            x=0,
+            y=64,
+            vx=0,
+            vy=0,
+            life=5,
+            attack=0,
+            direction=0,
+            onGround=true,
+            onTop=false,
+            died=false,
+            timer=0,
+            offset=0,
+            SpriteIndex=0
+        }
+        table.insert(EnemyList,e)
+        EnemyListLength=EnemyListLength+1
+    end
+
     function ManageEnemy()
-        trace("manage enemy")
+        if Game.timer % Game.enemyGenerationRate == 0 then
+            GenerateNewEnemy()
+        end
     end
 
-    function GetPlayerSprite()
-        return 256+Player.offset+Player.timer%30//8*4
+    function ManageEnemyMove()
+        for ei=0,EnemyListLength,1 do
+            if EnemyList[ei] ~= nil then
+                local e = EnemyList[ei]
+                if e.timer%4==0 then
+                    if e.x<Player.x and e.attack==0 then    
+                        e.direction=1
+                    end                
+                    if e.x>=Player.x and e.attack==0 then
+                        e.direction=0
+                    end
+
+                    e.vy = 0
+                    if e.y <= Player.y  then
+                        e.vy = 4
+                    end
+                    if e.attack>0 then
+                        e.vy = -4
+                        e.vx = 4
+                        
+                    end
+                    if e.attack <= 0 then
+                        e.vx = 1
+                    end
+                    trace(string.format("%s",e.vx))
+                    e.y = e.y + e.vy
+                    if e.direction==false then
+                        e.x = e.x - e.vx
+                    else
+                        e.x = e.x + e.vx
+                    end
+                end
+            end
+        end
     end
 
-    function Game()
+    function ManageEnemyAttack()
+        for ei=0,EnemyListLength,1 do
+            if EnemyList[ei] ~= nil then
+                local e = EnemyList[ei]
+                e.offset=0
+                if e.attack>=30 then
+                    e.attack=-60
+                end
+                if e.attack<0 then
+                    e.attack=e.attack+1
+                end
+                if math.abs(e.x-Player.x)<15 and e.attack==0 then
+                    e.attack=1
+                    e.timer=0
+                end
+                if e.attack > 0 then
+                    --trace(string.format("enemy attack: %s",e.attack))
+                    e.attack = e.attack+1
+                    e.offset = 4
+                end
+            end
+        end
+    end
+
+    function SetEnemySpriteIndex()
+        for ei=0,EnemyListLength,1 do
+            if EnemyList[ei] ~= nil then
+                local e = EnemyList[ei]
+                e.SpriteIndex= 384+e.offset+e.timer%30//10*2
+            end
+        end
+    end
+
+    function SetPlayerSpriteIndex()
+        Player.SpriteIndex = 256+Player.offset+Player.timer%30//8*4
+    end
+
+    function DrawElements()
+        spr(Player.SpriteIndex,Player.x,Player.y,14,1,Player.direction,0,4,4)
+        for ei=0,EnemyListLength,1 do
+            if EnemyList[ei] ~= nil then
+                spr(EnemyList[ei].SpriteIndex,EnemyList[ei].x,EnemyList[ei].y,14,1,EnemyList[ei].direction,0,2,2)
+            end
+        end
+    end
+    
+    function IncTimers()
+        Player.timer = Player.timer+1
+        for ei=0,EnemyListLength,1 do
+            if EnemyList[ei] ~= nil then
+                EnemyList[ei].timer = EnemyList[ei].timer+1
+            end
+        end
+        Game.timer = Game.timer+1
+    end
+
+    function GameLoop()
         ManagePlayerMove()
         ManagePlayerAttack()
-        trace(string.format("attack: %s", Player.attack))
+        SetPlayerSpriteIndex()
+        
         ManageEnemy()
-        --[[tick=60
-        sNum=30
+        ManageEnemyMove()
+        ManageEnemyAttack()
+        SetEnemySpriteIndex()
+        
         cls(0)
-        d,offset=ManageMove(offset)
-     
-        LoadEnemy(x)
-        if offset==64 then
-            tick=30
-            sNum=8
-        end
-        movingoffset=0
-        if isMoving then
-            movingoffset=8
-        end]]
-
-        pSpriteNr = GetPlayerSprite(Player)
-        --trace(pSpriteNr)
-        cls(0)
-        spr(pSpriteNr,Player.x,Player.y,14,1,Player.direction,0,4,4)
-        Player.timer = Player.timer+1
+        DrawElements()
+        
+        IncTimers()
     end
 
 
@@ -184,7 +246,7 @@
             print("NINJA",70,30,14,true,3)
             print("press X to start",72,60,15)
             if btn(5) then
-                    Gamestate=1
+                    Game.state=1
             end
         end
     end
@@ -198,18 +260,18 @@
     end
 
     function TIC()
-        if Gamestate==0  then
+        if Game.state==0  then
             Start(Player.timer)
             Player.timer=Player.timer+1
             return
         end
         
-        if Gamestate==1 then
-            Game()
+        if Game.state==1 then
+            GameLoop()
             return
         end
         
-        if Gamestate==2 then
+        if Game.state==2 then
             End()
             return
         end
